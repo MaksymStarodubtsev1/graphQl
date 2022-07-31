@@ -3,11 +3,12 @@ const bodyParser = require('body-parser')
 const { graphqlHTTP } = require('express-graphql')
 const { buildSchema } = require('graphql')
 const mongoose = require('mongoose')
-
+const bcrypt = require('bcryptjs')
 
 const app = express()
 
 const Event = require('./models/events')
+const User = require('./models/users')
 
 app.use(bodyParser.json())
 
@@ -21,6 +22,12 @@ app.use('/graphql', graphqlHTTP({
       date: String!
     }
 
+    type User {
+      _id: ID
+      email: String!
+      password: String
+    }
+
     input EventInput {
       title: String!
       description: String!
@@ -28,11 +35,17 @@ app.use('/graphql', graphqlHTTP({
       date: String!
     }
 
+    input UserInput {
+      email: String!
+      password: String!
+    }
+
     type RootQuery {
       events: [Event!]!
     }
     type RootMutation {
       createEvent(eventInput: EventInput): Event
+      createUser(userInput: UserInput): User
     }
     schema {
       query: RootQuery
@@ -43,9 +56,7 @@ app.use('/graphql', graphqlHTTP({
     events: () => {
       return Event.find()
       .then(events => {
-        console.log('events', events)
         return events.map(event => {
-          console.log('eventeventevent', event)
          return {
           ...event._doc,
           _id: event.id
@@ -71,6 +82,20 @@ app.use('/graphql', graphqlHTTP({
       .catch(err => {
         console.log(err)
       })
+    },
+    createUser: ({userInput}) => {
+      return bcrypt.hash(userInput.password, 12)
+      .then(hashedPassword => {
+        const user = new User({
+          email: hashedPassword.email,
+          password: hashedPassword.password
+        })
+        return user.save()
+      })
+      .then(result => ({
+        ...result._doc,
+        _id: result.id
+      }))
     }
   },
   graphiql: true
@@ -80,8 +105,10 @@ mongoose.connect(
   `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0.gu9f4.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`
 )
 .then(() => {
+  console.log('userSchema listen')
   app.listen(3000)
 })
 .catch(err => {
+  console.log('userSchema error')
   console.log(err)
 })
