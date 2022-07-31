@@ -20,12 +20,14 @@ app.use('/graphql', graphqlHTTP({
       description: String!
       price: Float!
       date: String!
+      creator: User!
     }
 
     type User {
       _id: ID
       email: String!
       password: String
+      createdEvents: [Event!]
     }
 
     input EventInput {
@@ -54,37 +56,48 @@ app.use('/graphql', graphqlHTTP({
   `),
   rootValue: {
     events: () => {
-      return Event.find()
+      return Event.find().populate('creator')
       .then(events => {
-        return events.map(event => {
-         return {
+        return events.map(event => ({
           ...event._doc,
-          _id: event.id
-         }
-        })
+          _id: event.id,
+          creator: {
+            ...event._doc.creator._doc,
+            _id: event._doc.creator.id
+          }
+         }))
       })
       .catch(err => {throw(err)})
     },
     createEvent: ({eventInput}) => {
+      let createdEvent
       const event = new Event({
         title: eventInput.title,
         description: eventInput.description,
         price: +eventInput.price,
         date: new Date(eventInput.date),
+        creator: '62e6abfd895851045e17f8d3',
       })
 
       return event
       .save()
-      .then(res => {
-        console.log(res)
-        return {...res._doc, _id: res.id}
+      .then(result => {
+        createdEvent = {...result._doc, _id: result.id}
+        return User.findById('62e6abfd895851045e17f8d3')
       })
-      .catch(err => {
-        console.log(err)
+      .then(user => {
+        if (!user) {
+          throw Error('User does not find')
+        }
+        user.createdEvents.push(event)
+        return user.save()
+      })
+      .then(result => {
+        return createdEvent
       })
     },
     createUser: ({userInput}) => {
-      return User.find({email: userInput.email})
+      return User.findOne({email: userInput.email})
       .then(result => {
         if (result) {
           throw Error('User exists already')
