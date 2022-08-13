@@ -10,6 +10,12 @@ module.exports = buildSchema(`
       creator: User!
     }
 
+    type Message {
+      _id: ID
+      message: String!
+      creator: User!
+    }
+
     type User {
       _id: ID
       email: String!
@@ -24,6 +30,10 @@ module.exports = buildSchema(`
       date: String!
     }
 
+    input MessageInput {
+      
+    }
+
     input UserInput {
       email: String!
       password: String!
@@ -31,6 +41,7 @@ module.exports = buildSchema(`
 
     type RootQuery {
       events: [Event!]!
+      messages: []
     }
     type RootMutation {
       createEvent(eventInput: EventInput): Event
